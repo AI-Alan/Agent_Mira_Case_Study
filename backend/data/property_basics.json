@@ -1,0 +1,152 @@
+[
+    {
+      "id": 1,
+      "title": "3 BHK Apartment in Downtown",
+      "price": 450000,
+      "location": "New York, NY"
+    },
+    {
+      "id": 2,
+      "title": "2 BHK Condo with Sea View",
+      "price": 380000,
+      "location": "Miami, FL"
+    },
+    {
+      "id": 3,
+      "title": "Luxury Villa with Private Garden",
+      "price": 850000,
+      "location": "Los Angeles, CA"
+    },
+    {
+      "id": 4,
+      "title": "1 BHK Budget Apartment",
+      "price": 250000,
+      "location": "Austin, TX"
+    },
+    {
+      "id": 5,
+      "title": "Penthouse with Skyline View",
+      "price": 1200000,
+      "location": "San Francisco, CA"
+    },
+    {
+      "id": 6,
+      "title": "Cozy Studio in Central Park",
+      "price": 300000,
+      "location": "New York, NY"
+    },
+    {
+      "id": 7,
+      "title": "Lakefront House with Dock",
+      "price": 750000,
+      "location": "Chicago, IL"
+    },
+    {
+      "id": 8,
+      "title": "Modern Townhouse with Backyard",
+      "price": 600000,
+      "location": "Dallas, TX"
+    },
+    {
+      "id": 9,
+      "title": "4 BHK Duplex with Home Office",
+      "price": 920000,
+      "location": "Seattle, WA"
+    },
+    {
+      "id": 10,
+      "title": "Minimalist Smart Home",
+      "price": 700000,
+      "location": "Boston, MA"
+    },
+    {
+      "id": 11,
+      "title": "3 BHK Luxury Apartment in Bandra",
+      "price": 8500000,
+      "location": "Mumbai"
+    },
+    {
+      "id": 12,
+      "title": "2 BHK Modern Flat in Connaught Place",
+      "price": 6500000,
+      "location": "Delhi"
+    },
+    {
+      "id": 13,
+      "title": "4 BHK Villa with Private Garden",
+      "price": 15000000,
+      "location": "Bangalore"
+    },
+    {
+      "id": 14,
+      "title": "1 BHK Budget Apartment in Hinjewadi",
+      "price": 3500000,
+      "location": "Pune"
+    },
+    {
+      "id": 15,
+      "title": "5 BHK Penthouse with Sea View",
+      "price": 18000000,
+      "location": "Mumbai"
+    },
+    {
+      "id": 16,
+      "title": "1 BHK Cozy Studio",
+      "price": 2800000,
+      "location": "Delhi"
+    },
+    {
+      "id": 17,
+      "title": "3 BHK Lakefront Apartment",
+      "price": 7500000,
+      "location": "Bangalore"
+    },
+    {
+      "id": 18,
+      "title": "2 BHK Modern Townhouse",
+      "price": 5500000,
+      "location": "Pune"
+    },
+    {
+      "id": 19,
+      "title": "4 BHK Duplex with Home Office",
+      "price": 12000000,
+      "location": "Mumbai"
+    },
+    {
+      "id": 20,
+      "title": "3 BHK Smart Home",
+      "price": 6800000,
+      "location": "Delhi"
+    },
+    {
+      "id": 21,
+      "title": "2 BHK Apartment in Koramangala",
+      "price": 7200000,
+      "location": "Bangalore"
+    },
+    {
+      "id": 22,
+      "title": "1 BHK Studio in Kothrud",
+      "price": 3200000,
+      "location": "Pune"
+    },
+    {
+      "id": 23,
+      "title": "3 BHK Flat in Andheri",
+      "price": 7800000,
+      "location": "Mumbai"
+    },
+    {
+      "id": 24,
+      "title": "4 BHK House in Gurgaon",
+      "price": 14000000,
+      "location": "Delhi"
+    },
+    {
+      "id": 25,
+      "title": "2 BHK Apartment in Whitefield",
+      "price": 6200000,
+      "location": "Bangalore"
+    }
+  ]

@@ -9,11 +9,10 @@ export default function App({ Component, pageProps }: AppProps) {
       <Head>
         <title>Agent Mira - AI Real Estate Chatbot</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#0f0c29" />
       </Head>
       <NavBar />
-      <main>
-        <Component {...pageProps} />
-      </main>
+      <Component {...pageProps} />
     </>
   );
 }
