@@ -1,6 +1,7 @@
 import random
 from nlp.extractor import extract_filters
 from services.data_service import filter_properties
+from services.gemini_service import generate_chat_response, enhance_response_with_properties, is_gemini_available
 from typing import Dict, Optional, List
 
 # Random response messages for different scenarios
@@ -37,9 +38,30 @@ def get_random_response(responses: List[str]) -> str:
     """Get a random response from a list"""
     return random.choice(responses)
 
+def _is_property_search(message: str, filters: Optional[Dict]) -> bool:
+    """Check if user is searching for properties"""
+    message_lower = message.lower().strip()
+    
+    # Keywords that indicate property search
+    search_keywords = [
+        "find", "search", "looking", "want", "need", "show", "list", 
+        "property", "properties", "home", "house", "apartment", "flat",
+        "buy", "rent", "bedroom", "bedrooms", "bhk", "location", "budget",
+        "price", "mumbai", "delhi", "bangalore", "pune", "hyderabad", "chennai"
+    ]
+    
+    # Check if message contains search keywords
+    has_search_keywords = any(keyword in message_lower for keyword in search_keywords)
+    
+    # Check if filters are provided
+    has_filters = filters and any(filters.values())
+    
+    return has_search_keywords or has_filters
+
 def handle_chat(message: str, filters: Optional[Dict[str, Optional[str]]] = None) -> Dict:
     """
     Handle chat messages and return properties with response
+    Enhanced with Gemini AI for natural conversations
     
     Args:
         message: User's chat message
@@ -49,23 +71,10 @@ def handle_chat(message: str, filters: Optional[Dict[str, Optional[str]]] = None
         Dict with response message and properties
     """
     message_lower = message.lower().strip()
+    use_gemini = is_gemini_available()
     
-    # Handle greetings
-    if any(word in message_lower for word in ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]):
-        if not filters and not any(word in message_lower for word in ["search", "find", "looking", "want", "need"]):
-            return {
-                "response": get_random_response(GREETING_RESPONSES),
-                "properties": [],
-                "filters": {}
-            }
-    
-    # Handle help requests
-    if any(word in message_lower for word in ["help", "what can you do", "how", "guide", "assist"]):
-        return {
-            "response": get_random_response(HELPFUL_RESPONSES),
-            "properties": [],
-            "filters": {}
-        }
+    # Determine if this is a property search
+    is_property_search = _is_property_search(message, filters)
     
     # Use provided filters or extract from message
     if not filters:
@@ -80,45 +89,58 @@ def handle_chat(message: str, filters: Optional[Dict[str, Optional[str]]] = None
             print(f"Error extracting filters: {e}")
             filters = {}
     
-    # Filter properties based on filters
-    location = filters.get("location") if filters else None
-    budget = filters.get("budget") if filters else None
-    bedrooms = filters.get("bedrooms") if filters else None
-    
-    results = filter_properties(
-        location=location,
-        budget=budget,
-        bedrooms=bedrooms
-    )
-    
-    # Generate response message
-    if len(results) > 0:
-        reply = get_random_response(SEARCH_SUCCESS_RESPONSES)
+    # Only filter properties if user is searching for properties
+    results = []
+    if is_property_search:
+        location = filters.get("location") if filters else None
+        budget = filters.get("budget") if filters else None
+        bedrooms = filters.get("bedrooms") if filters else None
         
-        # Add specific details
-        details = []
-        if location:
-            details.append(f"in {location}")
-        if bedrooms:
-            details.append(f"with {bedrooms} bedroom{'s' if int(bedrooms) > 1 else ''}")
-        if budget:
-            details.append(f"within your budget of {budget}")
-        
-        if details:
-            reply += " " + " ".join(details) + "."
+        results = filter_properties(
+            location=location,
+            budget=budget,
+            bedrooms=bedrooms
+        )
+    
+    # Generate response message using Gemini if available, otherwise use fallback
+    if use_gemini:
+        try:
+            # Try to generate a natural response with Gemini
+            context = {
+                "filters": filters if is_property_search else {},
+                "has_properties": len(results) > 0,
+                "property_count": len(results)
+            }
+            
+            gemini_response = generate_chat_response(
+                user_message=message,
+                context=context,
+                properties=results[:3] if results else None,
+                is_property_search=is_property_search
+            )
+            
+            if gemini_response:
+                reply = gemini_response
+            else:
+                # Fallback to traditional responses
+                reply = _generate_fallback_response(results, filters, message_lower, is_property_search)
+        except Exception as e:
+            print(f"Error using Gemini, falling back to traditional responses: {e}")
+            reply = _generate_fallback_response(results, filters, message_lower, is_property_search)
     else:
-        reply = get_random_response(SEARCH_NO_RESULTS_RESPONSES)
+        # Use traditional response system
+        reply = _generate_fallback_response(results, filters, message_lower, is_property_search)
     
     # Format properties for frontend
     properties = []
     for prop in results[:6]:  # Limit to 6 properties
         # Format price based on location (USD for US, INR for India)
         price = prop.get("price", 0)
-        location = prop.get("location", "")
+        prop_location = prop.get("location", "")
         
         # Check if it's an Indian city
         from services.data_service import is_indian_city
-        is_india = is_indian_city(location)
+        is_india = is_indian_city(prop_location)
         
         if isinstance(price, (int, float)):
             if is_india:
@@ -157,3 +179,44 @@ def handle_chat(message: str, filters: Optional[Dict[str, Optional[str]]] = None
         "properties": properties,
         "filters": filters or {}
     }
+
+def _generate_fallback_response(results: List[Dict], filters: Dict, message_lower: str = "", is_property_search: bool = False) -> str:
+    """Generate fallback response when Gemini is not available"""
+    # Handle greetings (only if not searching)
+    if not is_property_search:
+        if any(word in message_lower for word in ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]):
+            return get_random_response(GREETING_RESPONSES)
+        
+        # Handle help requests
+        if any(word in message_lower for word in ["help", "what can you do", "how", "guide", "assist"]):
+            return get_random_response(HELPFUL_RESPONSES)
+        
+        # General conversation fallback
+        return "I'm here to help you find your dream property! You can search by location, budget, or number of bedrooms. What are you looking for?"
+    
+    # Property search responses
+    if len(results) > 0:
+        reply = get_random_response(SEARCH_SUCCESS_RESPONSES)
+        
+        # Add specific details
+        details = []
+        location = filters.get("location") if filters else None
+        budget = filters.get("budget") if filters else None
+        bedrooms = filters.get("bedrooms") if filters else None
+        
+        if location:
+            details.append(f"in {location}")
+        if bedrooms:
+            try:
+                bedrooms_int = int(bedrooms)
+                details.append(f"with {bedrooms_int} bedroom{'s' if bedrooms_int > 1 else ''}")
+            except:
+                details.append(f"with {bedrooms} bedroom(s)")
+        if budget:
+            details.append(f"within your budget of {budget}")
+        
+        if details:
+            reply += " " + " ".join(details) + "."
+        return reply
+    else:
+        return get_random_response(SEARCH_NO_RESULTS_RESPONSES)
