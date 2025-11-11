@@ -1,92 +1,178 @@
 import re
-from typing import Dict, Optional
+import json
+from typing import Dict, Optional, List, Tuple
+from pathlib import Path
+from difflib import SequenceMatcher
+from nlp import config
 
-# Indian cities
-INDIAN_CITIES = ["mumbai", "delhi", "bangalore", "pune", "gurgaon", "noida", "hyderabad", "chennai", "bandra", "andheri", "koramangala", "whitefield", "hinjewadi", "kothrud", "connaught place"]
+# Cache for loaded cities
+_CITIES_CACHE = None
+_DATA_DIR = Path(__file__).parent.parent / "data"
 
-# US cities (for reference, but filtering works for any location)
-US_CITIES = ["new york", "miami", "los angeles", "austin", "san francisco", "chicago", "dallas", "seattle", "boston"]
 
-# Budget keywords
-BUDGET_KEYWORDS = {
-    "0-50l": ["0-50l", "0 to 50l", "upto 50l", "under 50l", "below 50l", "less than 50l"],
-    "50l-1cr": ["50l-1cr", "50l to 1cr", "50l-1 cr", "50 lakhs to 1 crore"],
-    "1cr-2cr": ["1cr-2cr", "1cr to 2cr", "1-2cr", "1 to 2 cr", "1 crore to 2 crore"]
-}
+def _load_cities_from_data() -> List[str]:
+    """Dynamically load all unique cities from property data"""
+    global _CITIES_CACHE
+    
+    if _CITIES_CACHE is not None:
+        return _CITIES_CACHE
+    
+    cities = set()
+    try:
+        property_file = _DATA_DIR / "property_basics.json"
+        if property_file.exists():
+            with open(property_file, 'r') as f:
+                properties = json.load(f)
+                for prop in properties:
+                    location = prop.get('location', '')
+                    # Extract city name (before comma)
+                    if location:
+                        city = location.split(',')[0].strip()
+                        cities.add(city.lower())
+    except Exception as e:
+        print(f"Warning: Could not load cities from data: {e}")
+        # Fallback to common cities from config
+        cities = set(config.FALLBACK_CITIES)
+    
+    _CITIES_CACHE = list(cities)
+    return _CITIES_CACHE
+
+
+def _fuzzy_match(text: str, candidates: List[str], threshold: float = 0.6) -> Optional[Tuple[str, float]]:
+    """Fuzzy match text against candidates, return best match if above threshold"""
+    text_lower = text.lower()
+    best_match = None
+    best_score = 0.0
+    
+    for candidate in candidates:
+        # Check exact substring match first
+        if candidate in text_lower:
+            return (candidate, 1.0)
+        
+        # Check fuzzy similarity
+        score = SequenceMatcher(None, candidate, text_lower).ratio()
+        if score > best_score:
+            best_score = score
+            best_match = candidate
+    
+    if best_score >= threshold:
+        return (best_match, best_score)
+    
+    return None
 
 def extract_location(text: str) -> Optional[str]:
-    """Extract location/city from text"""
+    """Extract location/city from text using fuzzy matching"""
+    if not text:
+        return None
+    
+    cities = _load_cities_from_data()
     text_lower = text.lower()
     
-    for city in INDIAN_CITIES:
+    # Try exact match first (fast path)
+    for city in cities:
         if city in text_lower:
-            # Return capitalized city name
-            return city.capitalize()
+            return city.title()
+    
+    # Try fuzzy matching on individual words
+    words = text_lower.split()
+    for word in words:
+        if len(word) >= config.MIN_WORD_LENGTH_FOR_FUZZY:  # Skip very short words
+            match = _fuzzy_match(word, cities, threshold=config.FUZZY_MATCH_THRESHOLD)
+            if match:
+                city, score = match
+                return city.title()
+    
+    # Try multi-word matching (e.g., "New York", "San Francisco")
+    for i in range(len(words) - 1):
+        two_words = f"{words[i]} {words[i+1]}"
+        match = _fuzzy_match(two_words, cities, threshold=config.FUZZY_MATCH_THRESHOLD)
+        if match:
+            city, score = match
+            return city.title()
     
     return None
 
 def extract_budget(text: str) -> Optional[str]:
-    """Extract budget range from text"""
-    text_lower = text.lower().replace(" ", "")
+    """Extract budget range from text - supports multiple currencies and formats"""
+    if not text:
+        return None
     
-    # Check for budget ranges
-    for budget_key, keywords in BUDGET_KEYWORDS.items():
-        for keyword in keywords:
-            if keyword.replace(" ", "") in text_lower:
-                return budget_key
+    text_lower = text.lower()
     
-    # Check for numeric patterns
-    # Look for patterns like "50 lakhs", "1 crore", etc.
-    lakhs_pattern = r'(\d+)\s*lakhs?'
-    crore_pattern = r'(\d+)\s*crores?'
+    # Pattern 1: Explicit range keywords ("0-50l", "under 50k", "$200k-$500k")
+    range_patterns = [
+        r'(?:under|below|less than|upto|up to)\s*(?:[$₹])?\s*(\d+)\s*([kKlLmM]|lakhs?|crores?|thousand|million)?',
+        r'(?:[$₹])?\s*(\d+)\s*([kKlLmM]|lakhs?|crores?)?\s*(?:to|-|–)\s*(?:[$₹])?\s*(\d+)\s*([kKlLmM]|lakhs?|crores?|thousand|million)?',
+        r'(?:[$₹])?\s*(\d+)\s*([kKlLmM]|lakhs?|crores?|thousand|million)?\s*(?:budget|price|cost)',
+    ]
     
-    lakhs_match = re.search(lakhs_pattern, text_lower)
-    crores_match = re.search(crore_pattern, text_lower)
+    for pattern in range_patterns:
+        match = re.search(pattern, text_lower)
+        if match:
+            return _normalize_budget(match.group(0))
     
-    if crores_match:
-        crore_value = int(crores_match.group(1))
-        if crore_value >= 2:
-            return "1cr-2cr"
-        elif crore_value >= 1:
-            return "50l-1cr"
+    # Pattern 2: Numeric values with currency symbols
+    numeric_patterns = [
+        r'[$₹]\s*(\d+[,.]?\d*)\s*([kKmMbB]|lakhs?|crores?|thousand|million)?',
+        r'(\d+[,.]?\d*)\s*([kKlLmMbB]|lakhs?|crores?|thousand|million)',
+    ]
     
-    if lakhs_match:
-        lakhs_value = int(lakhs_match.group(1))
-        if lakhs_value >= 50:
-            return "50l-1cr"
-        else:
-            return "0-50l"
+    for pattern in numeric_patterns:
+        match = re.search(pattern, text_lower)
+        if match:
+            return _normalize_budget(match.group(0))
     
     return None
 
+
+def _normalize_budget(budget_str: str) -> str:
+    """Normalize budget string to standard ranges"""
+    budget_lower = budget_str.lower().replace(',', '').replace('$', '').replace('₹', '').strip()
+    
+    # Extract numeric value
+    num_match = re.search(r'(\d+(?:\.\d+)?)', budget_lower)
+    if not num_match:
+        return None
+    
+    value = float(num_match.group(1))
+    
+    # Determine multiplier using config
+    for key, multiplier in config.CURRENCY_MULTIPLIERS.items():
+        if key in budget_lower:
+            value *= multiplier
+            break
+    
+    # Map to standard ranges from config
+    for min_val, max_val, range_label in config.BUDGET_RANGES:
+        if min_val <= value < max_val:
+            return range_label
+    
+    # Default to highest range if not found
+    return config.BUDGET_RANGES[-1][2]
+
 def extract_bedrooms(text: str) -> Optional[str]:
-    """Extract number of bedrooms from text"""
+    """Extract number of bedrooms from text with improved pattern matching"""
+    if not text:
+        return None
+    
     text_lower = text.lower()
     
-    # Pattern for "2 BHK", "3 bedroom", etc.
-    patterns = [
-        r'(\d+)\s*bhk',
-        r'(\d+)\s*bedroom',
-        r'(\d+)\s*bed',
-        r'(\d+)\s*room'
-    ]
-    
-    for pattern in patterns:
+    # Use patterns from config
+    for pattern in config.BEDROOM_PATTERNS:
         match = re.search(pattern, text_lower)
         if match:
             bedrooms = match.group(1)
-            # Validate it's a reasonable number (1-5)
-            if 1 <= int(bedrooms) <= 5:
+            # Validate it's a reasonable number using config
+            if 1 <= int(bedrooms) <= config.MAX_BEDROOMS:
                 return bedrooms
     
-    # Check for written numbers
-    number_words = {
-        "one": "1", "two": "2", "three": "3", 
-        "four": "4", "five": "5"
-    }
+    # Check for "studio" or "1br"
+    if 'studio' in text_lower:
+        return "1"
     
-    for word, num in number_words.items():
-        if word in text_lower:
+    # Look for written numbers from config
+    for word, num in config.NUMBER_WORDS.items():
+        if re.search(rf'\b{word}\b.*(?:bedroom|bed|bhk|br)', text_lower):
             return num
     
     return None

@@ -25,7 +25,7 @@ export default function PropertyCard({ property, onSave, isSaving = false, isSav
       </div>
       <div className={styles.content}>
         <h3 className={styles.title}>{property.title}</h3>
-        <p className={styles.price}>₹{property.price}</p>
+        <p className={styles.price}>{property.price}</p>
         <p className={styles.location}>📍 {property.location}</p>
         <p className={styles.bedrooms}>🛏️ {property.bedrooms} Bedrooms</p>
         <button 

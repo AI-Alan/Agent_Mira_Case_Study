@@ -1,5 +1,5 @@
 import random
-from nlp.extractor import extract_filters
+from nlp import extract_with_hybrid, extract_filters, is_llm_available
 from services.data_service import filter_properties
 from services.gemini_service import generate_chat_response, enhance_response_with_properties, is_gemini_available
 from typing import Dict, Optional, List
@@ -72,22 +72,37 @@ def handle_chat(message: str, filters: Optional[Dict[str, Optional[str]]] = None
     """
     message_lower = message.lower().strip()
     use_gemini = is_gemini_available()
+    use_llm_nlp = is_llm_available()
     
-    # Determine if this is a property search
-    is_property_search = _is_property_search(message, filters)
-    
-    # Use provided filters or extract from message
+    # Use hybrid NLP extraction (rules + LLM)
+    extraction_result = None
     if not filters:
         try:
-            extracted = extract_filters(message)
+            # Try hybrid extraction if LLM is available, otherwise use rules only
+            extraction_result = extract_with_hybrid(message, use_llm=use_llm_nlp)
             filters = {
-                "location": extracted.get("location"),
-                "budget": extracted.get("budget"),
-                "bedrooms": extracted.get("bedrooms")
+                "location": extraction_result.get("location"),
+                "budget": extraction_result.get("budget"),
+                "bedrooms": extraction_result.get("bedrooms")
             }
+            
+            # Log extraction method for debugging
+            method = extraction_result.get("extraction_method", "rule-based")
+            if any(filters.values()):
+                print(f"🔍 Extracted using {method}: {filters}")
+            
         except Exception as e:
             print(f"Error extracting filters: {e}")
             filters = {}
+            extraction_result = {}
+    
+    # Determine if this is a property search using intent if available
+    if extraction_result and extraction_result.get("intent"):
+        intent = extraction_result["intent"]
+        is_property_search = intent in ["property_search", "general_inquiry"]
+        print(f"🎯 Intent: {intent} (confidence: {extraction_result.get('intent_confidence', 0):.2f})")
+    else:
+        is_property_search = _is_property_search(message, filters)
     
     # Only filter properties if user is searching for properties
     results = []
@@ -109,7 +124,9 @@ def handle_chat(message: str, filters: Optional[Dict[str, Optional[str]]] = None
             context = {
                 "filters": filters if is_property_search else {},
                 "has_properties": len(results) > 0,
-                "property_count": len(results)
+                "property_count": len(results),
+                "intent": extraction_result.get("intent") if extraction_result else None,
+                "preferences": extraction_result.get("preferences", {}) if extraction_result else {}
             }
             
             gemini_response = generate_chat_response(

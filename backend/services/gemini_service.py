@@ -14,7 +14,7 @@ def initialize_gemini():
     if settings.GEMINI_API_KEY:
         try:
             genai.configure(api_key=settings.GEMINI_API_KEY)
-            gemini_client = genai.GenerativeModel('gemini-pro')
+            gemini_client = genai.GenerativeModel('gemini-2.5-flash')
             return True
         except Exception as e:
             print(f"Error initializing Gemini: {e}")
