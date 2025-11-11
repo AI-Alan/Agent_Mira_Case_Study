@@ -273,6 +273,26 @@ export default function ChatbotUI() {
     }
   };
 
+  // Handle mobile viewport height changes (keyboard)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleResize = () => {
+      // Force a reflow to ensure proper height calculation
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+
   const clearChat = () => {
     setShowClearModal(true);
   };

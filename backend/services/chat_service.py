@@ -21,10 +21,10 @@ SEARCH_SUCCESS_RESPONSES = [
 ]
 
 SEARCH_NO_RESULTS_RESPONSES = [
-    "I couldn't find properties matching those exact criteria. Would you like to try different filters?",
-    "No properties found with those specifications. Let me know if you'd like to adjust your search!",
-    "Hmm, no matches found. How about trying a different location or budget range?",
-    "Unfortunately, I couldn't find properties with those filters. Want to explore other options?",
+    "I couldn't find any properties matching those exact criteria in our database. Would you like to try different filters?",
+    "No properties found with those specifications in our current listings. Let me know if you'd like to adjust your search!",
+    "Unfortunately, I don't have any properties matching those criteria. How about trying a different location or budget range?",
+    "I searched our database but couldn't find any properties matching those filters. Want to explore other options?",
 ]
 
 HELPFUL_RESPONSES = [
@@ -118,9 +118,11 @@ def handle_chat(message: str, filters: Optional[Dict[str, Optional[str]]] = None
         )
     
     # Generate response message using Gemini if available, otherwise use fallback
+    # IMPORTANT: Only pass actual properties that exist in the database
     if use_gemini:
         try:
             # Try to generate a natural response with Gemini
+            # Only pass properties that actually exist (results from filter_properties)
             context = {
                 "filters": filters if is_property_search else {},
                 "has_properties": len(results) > 0,
@@ -129,10 +131,13 @@ def handle_chat(message: str, filters: Optional[Dict[str, Optional[str]]] = None
                 "preferences": extraction_result.get("preferences", {}) if extraction_result else {}
             }
             
+            # Only pass actual properties from database - never make up properties
+            actual_properties = results[:5] if results else []  # Limit to 5 for context
+            
             gemini_response = generate_chat_response(
                 user_message=message,
                 context=context,
-                properties=results[:3] if results else None,
+                properties=actual_properties,  # Only actual properties from database
                 is_property_search=is_property_search
             )
             
@@ -236,4 +241,23 @@ def _generate_fallback_response(results: List[Dict], filters: Dict, message_lowe
             reply += " " + " ".join(details) + "."
         return reply
     else:
-        return get_random_response(SEARCH_NO_RESULTS_RESPONSES)
+        # NO RESULTS - be very clear about this
+        reply = get_random_response(SEARCH_NO_RESULTS_RESPONSES)
+        
+        # Add helpful suggestions
+        suggestions = []
+        location = filters.get("location") if filters else None
+        budget = filters.get("budget") if filters else None
+        bedrooms = filters.get("bedrooms") if filters else None
+        
+        if not location:
+            suggestions.append("try specifying a location")
+        if not budget:
+            suggestions.append("adjust your budget range")
+        if not bedrooms:
+            suggestions.append("try different bedroom options")
+        
+        if suggestions:
+            reply += " You could " + ", or ".join(suggestions) + "."
+        
+        return reply

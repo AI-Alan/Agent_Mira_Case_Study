@@ -45,21 +45,43 @@ def merge_json_data() -> List[Dict]:
     return merged
 
 def parse_budget_range(budget: Optional[str]) -> tuple:
-    """Parse budget range string to min and max values in Rupees"""
+    """Parse budget range string to min and max values in Rupees (INR)"""
     if not budget:
         return (0, float('inf'))
     
-    budget_lower = budget.lower().replace(' ', '').replace('-', '')
+    budget_lower = budget.lower().replace(' ', '').replace('-', '').replace('+', '').strip()
     
-    if '50l1cr' in budget_lower or '50l-1cr' in budget_lower:
-        return (5000000, 10000000)  # 50L to 1Cr (5M to 10M)
-    elif '050l' in budget_lower or '0-50l' in budget_lower:
+    # Handle Indian budget ranges
+    if '0-50l' in budget_lower or '050l' in budget_lower or budget_lower == '0-50l':
         return (0, 5000000)  # 0 to 50L (0 to 5M)
-    elif '1cr2cr' in budget_lower or '1cr-2cr' in budget_lower:
+    elif '50l-1cr' in budget_lower or '50l1cr' in budget_lower:
+        return (5000000, 10000000)  # 50L to 1Cr (5M to 10M)
+    elif '1cr-2cr' in budget_lower or '1cr2cr' in budget_lower:
         return (10000000, 20000000)  # 1Cr to 2Cr (10M to 20M)
-    elif '2cr' in budget_lower:
+    elif '2cr+' in budget_lower or ('2cr' in budget_lower and ('above' in budget_lower or 'more' in budget_lower or '+' in budget_lower)):
         return (20000000, float('inf'))  # Above 2Cr
     else:
+        # Try to parse as a single value and map to range
+        import re
+        num_match = re.search(r'(\d+(?:\.\d+)?)', budget_lower)
+        if num_match:
+            value = float(num_match.group(1))
+            # Check for multipliers (L, Cr, etc.)
+            if 'l' in budget_lower or 'lakh' in budget_lower:
+                value *= 100000
+            elif 'cr' in budget_lower or 'crore' in budget_lower:
+                value *= 10000000
+            
+            # Map to ranges
+            if value < 5000000:
+                return (0, 5000000)
+            elif value < 10000000:
+                return (5000000, 10000000)
+            elif value < 20000000:
+                return (10000000, 20000000)
+            else:
+                return (20000000, float('inf'))
+        
         return (0, float('inf'))
 
 def is_indian_city(location: str) -> bool:

@@ -126,8 +126,21 @@ def extract_budget(text: str) -> Optional[str]:
 
 
 def _normalize_budget(budget_str: str) -> str:
-    """Normalize budget string to standard ranges"""
-    budget_lower = budget_str.lower().replace(',', '').replace('$', '').replace('₹', '').strip()
+    """Normalize budget string to standard Indian ranges (0-50L, 50L-1Cr, 1Cr-2Cr)"""
+    if not budget_str:
+        return None
+    
+    budget_lower = budget_str.lower().replace(',', '').replace('$', '').replace('₹', '').replace(' ', '').strip()
+    
+    # Check for explicit Indian range patterns first
+    if '0-50l' in budget_lower or '050l' in budget_lower or ('0' in budget_lower and '50' in budget_lower and ('l' in budget_lower or 'lakh' in budget_lower)):
+        return "0-50L"
+    elif '50l-1cr' in budget_lower or '50l1cr' in budget_lower or ('50' in budget_lower and '1cr' in budget_lower):
+        return "50L-1Cr"
+    elif '1cr-2cr' in budget_lower or '1cr2cr' in budget_lower or ('1cr' in budget_lower and '2cr' in budget_lower):
+        return "1Cr-2Cr"
+    elif '2cr' in budget_lower and ('above' in budget_lower or 'more' in budget_lower or '+' in budget_lower):
+        return "2Cr+"
     
     # Extract numeric value
     num_match = re.search(r'(\d+(?:\.\d+)?)', budget_lower)
@@ -137,18 +150,29 @@ def _normalize_budget(budget_str: str) -> str:
     value = float(num_match.group(1))
     
     # Determine multiplier using config
+    multiplier_applied = False
     for key, multiplier in config.CURRENCY_MULTIPLIERS.items():
         if key in budget_lower:
             value *= multiplier
+            multiplier_applied = True
             break
     
-    # Map to standard ranges from config
-    for min_val, max_val, range_label in config.BUDGET_RANGES:
-        if min_val <= value < max_val:
-            return range_label
+    # If no multiplier found but value is large, assume it's already in base currency
+    # Convert to INR if needed (for Indian properties)
+    # Map to Indian budget ranges (in INR)
+    # 0-50L = 0 to 5,000,000
+    # 50L-1Cr = 5,000,000 to 10,000,000
+    # 1Cr-2Cr = 10,000,000 to 20,000,000
+    # 2Cr+ = 20,000,000+
     
-    # Default to highest range if not found
-    return config.BUDGET_RANGES[-1][2]
+    if value < 5000000:  # Less than 50L
+        return "0-50L"
+    elif value < 10000000:  # 50L to 1Cr
+        return "50L-1Cr"
+    elif value < 20000000:  # 1Cr to 2Cr
+        return "1Cr-2Cr"
+    else:  # Above 2Cr
+        return "2Cr+"
 
 def extract_bedrooms(text: str) -> Optional[str]:
     """Extract number of bedrooms from text with improved pattern matching"""

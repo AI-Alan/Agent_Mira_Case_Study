@@ -177,23 +177,100 @@
   transform: translateY(0);
 }
 
+@media (max-width: 768px) {
+  .filtersPanel {
+    max-height: 75vh;
+    padding: 1.5rem;
+  }
+
+  .header {
+    margin-bottom: 1.25rem;
+  }
+
+  .header h3 {
+    font-size: 1.15rem;
+  }
+
+  .filters {
+    gap: 1rem;
+  }
+}
+
 @media (max-width: 480px) {
   .filtersPanel {
     padding: 1.25rem;
     max-height: 80vh;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+  }
+
+  .header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.875rem;
   }
 
   .header h3 {
     font-size: 1.1rem;
   }
 
+  .closeButton {
+    width: 30px;
+    height: 30px;
+    font-size: 1.3rem;
+  }
+
+  .filters {
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .filterGroup {
+    gap: 0.4rem;
+  }
+
+  .filterGroup label {
+    font-size: 0.85rem;
+  }
+
+  .select {
+    padding: 0.75rem 0.875rem;
+    font-size: 0.9rem;
+    border-radius: 10px;
+  }
+
   .actions {
     flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 0.875rem;
   }
 
   .clearButton,
   .applyButton {
     width: 100%;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .filtersPanel {
+    padding: 1rem;
+  }
+
+  .header h3 {
+    font-size: 1rem;
+  }
+
+  .select {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .clearButton,
+  .applyButton {
+    padding: 0.625rem 1rem;
+    font-size: 0.85rem;
   }
 }
 
