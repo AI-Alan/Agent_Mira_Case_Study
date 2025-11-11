@@ -53,9 +53,11 @@ def extract_entities_with_llm(text: str) -> Dict[str, Optional[str]]:
         prompt = f"""You are an AI assistant specialized in extracting real estate search parameters from natural language queries.
 
 Extract the following information from the user's message:
-1. **location**: City or area name (e.g., "Mumbai", "New York", "San Francisco")
-2. **budget**: Budget range or amount (normalize to ranges like "0-50k", "100k-200k", "300k-500k", "500k-750k", "750k-1m", "1m+")
-3. **bedrooms**: Number of bedrooms (e.g., "2", "3", "4")
+1. **location**: City or area name (e.g., "Mumbai", "Delhi", "Bangalore", "Pune")
+2. **budget**: Budget range - MUST normalize to Indian ranges: "0-50L", "50L-1Cr", "1Cr-2Cr", or "2Cr+"
+   - For Indian properties: Convert any amount to these ranges
+   - Examples: "50 lakhs" -> "50L-1Cr", "1 crore" -> "1Cr-2Cr", "under 50L" -> "0-50L"
+3. **bedrooms**: Number of bedrooms (e.g., "1", "2", "3", "4")
 4. **property_type**: Type of property (e.g., "apartment", "house", "villa", "condo")
 5. **amenities**: List of desired amenities (e.g., ["parking", "gym", "pool"])
 6. **urgency**: How urgent is the search (e.g., "immediate", "1-3 months", "just browsing")
@@ -63,10 +65,12 @@ Extract the following information from the user's message:
 User query: "{text}"
 
 Return ONLY a valid JSON object with these fields. Use null for missing information.
+IMPORTANT: Budget must be one of: "0-50L", "50L-1Cr", "1Cr-2Cr", or "2Cr+"
+
 Example format:
 {{
   "location": "Mumbai",
-  "budget": "300k-500k",
+  "budget": "50L-1Cr",
   "bedrooms": "2",
   "property_type": "apartment",
   "amenities": ["parking", "gym"],
@@ -87,10 +91,19 @@ JSON response:"""
                 json_str = json_match.group(0)
                 entities = json.loads(json_str)
                 
+                # Normalize budget to Indian ranges if provided
+                budget = entities.get("budget")
+                if budget:
+                    # Import the normalization function
+                    from nlp.extractor import _normalize_budget
+                    normalized_budget = _normalize_budget(str(budget))
+                    if normalized_budget:
+                        budget = normalized_budget
+                
                 # Clean up the extracted entities
                 return {
                     "location": entities.get("location"),
-                    "budget": entities.get("budget"),
+                    "budget": budget,
                     "bedrooms": str(entities.get("bedrooms")) if entities.get("bedrooms") else None,
                     "property_type": entities.get("property_type"),
                     "amenities": entities.get("amenities") if isinstance(entities.get("amenities"), list) else None,

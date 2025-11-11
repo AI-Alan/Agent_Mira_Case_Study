@@ -154,16 +154,88 @@
   box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
 }
 
+@media (max-width: 768px) {
+  .imageContainer {
+    height: 180px;
+  }
+
+  .content {
+    padding: 1.25rem;
+  }
+
+  .title {
+    font-size: 1.15rem;
+  }
+
+  .price {
+    font-size: 1.35rem;
+  }
+}
+
 @media (max-width: 600px) {
+  .card {
+    border-radius: 14px;
+  }
+
+  .imageContainer {
+    height: 160px;
+  }
+
   .content {
     padding: 1rem;
+    gap: 0.625rem;
   }
 
   .title {
     font-size: 1.1rem;
+    line-height: 1.3;
   }
 
   .price {
     font-size: 1.25rem;
+  }
+
+  .location,
+  .bedrooms {
+    font-size: 0.9rem;
+  }
+
+  .saveButton {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.95rem;
+    border-radius: 10px;
+  }
+
+  .savedBadge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .imageContainer {
+    height: 150px;
+  }
+
+  .content {
+    padding: 0.875rem;
+  }
+
+  .title {
+    font-size: 1rem;
+  }
+
+  .price {
+    font-size: 1.15rem;
+  }
+
+  .location,
+  .bedrooms {
+    font-size: 0.85rem;
+  }
+
+  .saveButton {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
   }
 }
